@@ -10,7 +10,7 @@ const Team = () => {
       "bio": "",
       "email": "",
       "linkedin": "",
-      "image": "/Team/BHARGAVA_CHARAN.png"
+      "image": "/Team/Bhargava_charan.png"
     },
     {
       "name": "ASHIK",
@@ -211,7 +211,7 @@ const Team = () => {
         </div>
       </section>
 
-      {/* Team Members Section */}
+      {/* Team Members Section  .*/}
       <section className="section-academic bg-background">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
