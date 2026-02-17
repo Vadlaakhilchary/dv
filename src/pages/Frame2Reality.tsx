@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, useMotionValue, useSpring, useTransform, useScroll, AnimatePresence } from 'framer-motion';
-import { ChevronRight, Calendar, MapPin, Clock, AlertTriangle, User, Users, Mail, Phone, CheckCircle, Upload, ArrowLeft, Home } from 'lucide-react';
+import { ChevronRight, Calendar, MapPin, Clock, AlertTriangle, User, Users, Mail, Phone, CheckCircle, Upload, ArrowLeft, Home, RefreshCw } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import GamingPortalAnimation from './GamingPortalAnimation';
 
@@ -118,11 +118,20 @@ export default function Frame2Reality() {
   
   // Form State
   const [formStep, setFormStep] = useState(1);
-  const [teamSize, setTeamSize] = useState(3);
+  const [teamSize, setTeamSize] = useState(4);
   const [errors, setErrors] = useState<string | null>(null);
   const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
+  const [currentQrIndex, setCurrentQrIndex] = useState(0);
   const [paymentProof, setPaymentProof] = useState<File | null>(null);
   const [utrNumber, setUtrNumber] = useState('');
+  
+  // Available QR codes
+  const qrCodes = [
+    { id: 'QR1', url: '/payment-qr-1.jpeg', label: 'Payment QR 1' },
+    { id: 'QR2', url: '/payment-qr-2.jpeg', label: 'Payment QR 2' },
+    { id: 'QR3', url: '/payment-qr-3.jpeg', label: 'Payment QR 3' },
+    { id: 'QR4', url: '/payment-qr-4.jpeg', label: 'Payment QR 4' },
+  ];
   
   // Controlled Inputs
   const [formData, setFormData] = useState({
@@ -157,11 +166,24 @@ export default function Frame2Reality() {
   const heroScale   = useTransform(scrollYProgress, [0,0.5],[1,1.2]);
   const heroOpacity = useTransform(scrollYProgress, [0,0.5],[1,0]);
 
-  // ── FETCH QR CODE FROM ADMIN ──
+  // ── PAYMENT QR CODE (served from public/ folder) ──
   useEffect(() => {
-    // Replace with actual API call
-    setQrCodeUrl('https://via.placeholder.com/300x300.png?text=Payment+QR');
+    // Load default QR from localStorage (set by admin)
+    const defaultQR = localStorage.getItem('dv_default_qr') || 'QR1';
+    const defaultIndex = qrCodes.findIndex(qr => qr.id === defaultQR);
+    if (defaultIndex !== -1 && currentQrIndex === 0) {
+      setCurrentQrIndex(defaultIndex);
+    }
   }, []);
+  
+  useEffect(() => {
+    setQrCodeUrl(qrCodes[currentQrIndex].url);
+  }, [currentQrIndex]);
+  
+  // Switch to next QR code
+  const switchToNextQr = () => {
+    setCurrentQrIndex((prev) => (prev + 1) % qrCodes.length);
+  };
 
   // ── RESPONSIVE BLOCK SIZE ──
   useEffect(() => {
@@ -320,13 +342,7 @@ export default function Frame2Reality() {
       return false;
     }
     if (!utrNumber.trim()) {
-      setErrors("ERROR: UTR NUMBER REQUIRED");
-      return false;
-    }
-    
-    const utrRegex = /^\d{12}$/;
-    if (!utrRegex.test(utrNumber.trim())) {
-      setErrors("ERROR: UTR MUST BE 12 DIGITS");
+      setErrors("ERROR: UTR/TRANSACTION ID REQUIRED");
       return false;
     }
     
@@ -350,56 +366,131 @@ export default function Frame2Reality() {
     }
   };
 
-  const GOOGLE_SCRIPT_URL = 'YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL_HERE';
+  // ⚠️ PASTE YOUR DEPLOYED GOOGLE APPS SCRIPT WEB APP URL BELOW
+  const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyqERB9KYW7Q6YDO9_rICzuDPmz8p8FyYpfHRR-UZGT4B_9oa1H1rRTeA72gJ_UAtou/exec';
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault(); 
-    
-    if (!validateStep3()) return;
+  e.preventDefault(); 
+  
+  if (!validateStep3()) return;
 
-    setLoading(true);
-    setErrors(null);
+  setLoading(true);
+  setErrors(null);
 
-    const formDataToSend = new FormData();
-    
-    formDataToSend.append('TeamName', formData.TeamName);
-    formDataToSend.append('TeamSize', teamSize.toString());
-    formDataToSend.append('TotalAmount', (teamSize * 150).toString());
-    
-    formDataToSend.append('LeaderName', formData.LeaderName);
-    formDataToSend.append('LeaderRoll', formData.LeaderRoll);
-    formDataToSend.append('LeaderYear', formData.LeaderYear);
-    formDataToSend.append('LeaderBranch', formData.LeaderBranch);
-    formDataToSend.append('LeaderSection', formData.LeaderSection);
-    formDataToSend.append('LeaderPhone', formData.LeaderPhone);
-    formDataToSend.append('LeaderEmail', formData.LeaderEmail);
-    
-    membersData.forEach((member, idx) => {
-      formDataToSend.append(`Member${idx+2}_Name`, member.name || '');
-      formDataToSend.append(`Member${idx+2}_Roll`, member.roll || '');
-      formDataToSend.append(`Member${idx+2}_Year`, member.year || '');
-      formDataToSend.append(`Member${idx+2}_Branch`, member.branch || '');
-      formDataToSend.append(`Member${idx+2}_Section`, member.section || '');
-      formDataToSend.append(`Member${idx+2}_Phone`, member.phone || '');
-      formDataToSend.append(`Member${idx+2}_Email`, member.email || '');
-    });
-    
-    formDataToSend.append('UTRNumber', utrNumber);
-    if (paymentProof) {
-      formDataToSend.append('PaymentProof', paymentProof);
-    }
-
-    try {
-      await fetch(GOOGLE_SCRIPT_URL, { method:'POST', body: formDataToSend });
-      setShowSuccessModal(true);
-      setTimeout(() => navigate('/events'), 4000);
-    } catch (err) { 
-        console.error(err); 
-        setErrors("CONNECTION FAILURE: UNABLE TO REACH SERVER");
-    } finally { 
-        setLoading(false); 
-    }
+  const payload: Record<string, string> = {
+    TeamName: formData.TeamName,
+    TeamSize: teamSize.toString(),
+    TotalAmount: (teamSize * 150).toString(),
+    LeaderName: formData.LeaderName,
+    LeaderRoll: formData.LeaderRoll,
+    LeaderYear: formData.LeaderYear,
+    LeaderBranch: formData.LeaderBranch,
+    LeaderSection: formData.LeaderSection,
+    LeaderPhone: formData.LeaderPhone,
+    LeaderEmail: formData.LeaderEmail,
+    UTRNumber: utrNumber,
   };
+
+  membersData.forEach((member, idx) => {
+    payload[`Member${idx+2}_Name`] = member.name || '';
+    payload[`Member${idx+2}_Roll`] = member.roll || '';
+    payload[`Member${idx+2}_Year`] = member.year || '';
+    payload[`Member${idx+2}_Branch`] = member.branch || '';
+    payload[`Member${idx+2}_Section`] = member.section || '';
+    payload[`Member${idx+2}_Phone`] = member.phone || '';
+    payload[`Member${idx+2}_Email`] = member.email || '';
+  });
+
+  const MAX_PROOF_SIZE = 5 * 1024 * 1024;
+  if (paymentProof) {
+    if (paymentProof.size > MAX_PROOF_SIZE) {
+      setLoading(false);
+      setErrors('PAYMENT PROOF TOO LARGE (max 5 MB). Please compress the image and try again.');
+      return;
+    }
+    try {
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = () => reject(new Error('Failed to read file'));
+        reader.readAsDataURL(paymentProof);
+      });
+      payload['PaymentProof'] = base64;
+      payload['PaymentProofName'] = paymentProof.name;
+      payload['PaymentQR'] = qrCodes[currentQrIndex].id;
+      console.log('[Frame2Reality] Payment proof encoded, size:', Math.round(base64.length / 1024), 'KB');
+    } catch (fileErr) {
+      console.warn('[Frame2Reality] Could not read payment proof, submitting without it:', fileErr);
+    }
+  }
+
+  try {
+    console.log('[Frame2Reality] Submitting registration…', { teamName: payload.TeamName });
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 60_000);
+
+    const res = await fetch(GOOGLE_SCRIPT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(payload),
+      redirect: 'follow',
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+
+    let result: { status?: string; message?: string } | null = null;
+    try {
+      result = await res.json();
+    } catch {
+      // Response might not be JSON
+    }
+
+    console.log('[Frame2Reality] Server response:', res.status, result);
+
+    if (result?.status === 'error') {
+      setErrors(`SERVER ERROR: ${result.message || 'Unknown error'}`);
+    } else {
+      // ✅ SUCCESS - Show modal, then close it and scroll to top
+      setShowSuccessModal(true);
+      setTimeout(() => {
+        setShowSuccessModal(false);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }, 4000);
+    }
+  } catch (err: unknown) {
+      if (err instanceof DOMException && err.name === 'AbortError') {
+        console.error('[Frame2Reality] Request timed out after 60 s');
+        setErrors('REQUEST TIMED OUT. Please check your connection and try again.');
+      } else if (err instanceof TypeError && String(err).includes('Failed to fetch')) {
+        console.warn('[Frame2Reality] CORS blocked, retrying with no-cors…');
+        try {
+          await fetch(GOOGLE_SCRIPT_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            body: JSON.stringify(payload),
+          });
+          console.log('[Frame2Reality] no-cors fallback completed.');
+          // ✅ SUCCESS - Show modal, then close it and scroll to top
+          setShowSuccessModal(true);
+          setTimeout(() => {
+            setShowSuccessModal(false);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }, 4000);
+        } catch (fallbackErr) {
+          console.error('[Frame2Reality] Fallback also failed:', fallbackErr);
+          setErrors('CONNECTION FAILURE: UNABLE TO REACH SERVER. Please check your internet connection.');
+        }
+      } else {
+        console.error('[Frame2Reality] Submission error:', err);
+        setErrors('CONNECTION FAILURE: UNABLE TO REACH SERVER');
+      }
+  } finally { 
+      setLoading(false); 
+  }
+};
 
   const totalAmount = teamSize * 150;
 
@@ -427,6 +518,126 @@ export default function Frame2Reality() {
     <>
       {showPortalAnimation && <GamingPortalAnimation onComplete={() => setShowPortalAnimation(false)} />}
 
+      {/* TRANSMITTING LOADER */}
+      <AnimatePresence>
+        {loading && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[9998] flex flex-col items-center justify-center bg-black/95 backdrop-blur-lg px-4"
+          >
+            <div className="absolute inset-0 pointer-events-none"
+              style={{
+                backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(34,197,94,0.03) 2px, rgba(34,197,94,0.03) 4px)',
+              }}
+            />
+
+            <div className="relative w-32 h-32 mb-8">
+              <motion.div
+                animate={{ rotate: 360 }}
+                transition={{ duration: 3, repeat: Infinity, ease: 'linear' }}
+                className="absolute inset-0"
+              >
+                <svg viewBox="0 0 100 100" className="w-full h-full">
+                  <polygon
+                    points="50,2 93,25 93,75 50,98 7,75 7,25"
+                    fill="none"
+                    stroke="#22c55e"
+                    strokeWidth="1.5"
+                    strokeDasharray="8 4"
+                    className="drop-shadow-[0_0_8px_#22c55e]"
+                  />
+                </svg>
+              </motion.div>
+              <motion.div
+                animate={{ rotate: -360 }}
+                transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
+                className="absolute inset-4"
+              >
+                <svg viewBox="0 0 100 100" className="w-full h-full">
+                  <polygon
+                    points="50,5 90,27 90,73 50,95 10,73 10,27"
+                    fill="none"
+                    stroke="#4ade80"
+                    strokeWidth="2"
+                    className="drop-shadow-[0_0_12px_#22c55e]"
+                  />
+                </svg>
+              </motion.div>
+              <motion.div
+                animate={{ scale: [1, 1.3, 1], opacity: [0.6, 1, 0.6] }}
+                transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
+                className="absolute inset-0 flex items-center justify-center"
+              >
+                <div className="w-8 h-8 bg-green-500 rounded-sm rotate-45 shadow-[0_0_25px_#22c55e,0_0_50px_#22c55e55]" />
+              </motion.div>
+            </div>
+
+            <div className="font-mono text-center space-y-3 relative z-10">
+              <motion.h2
+                animate={{ opacity: [1, 0.5, 1] }}
+                transition={{ duration: 2, repeat: Infinity }}
+                className="text-green-400 text-xl md:text-2xl font-black tracking-widest"
+              >
+                TRANSMITTING DATA
+              </motion.h2>
+
+              <div className="text-xs text-green-500/60 space-y-1 max-w-xs mx-auto text-left">
+                <motion.p initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }}>
+                  {'>'} Encrypting payload...
+                </motion.p>
+                <motion.p initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.8 }}>
+                  {'>'} Establishing secure channel...
+                </motion.p>
+                <motion.p initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 1.4 }}>
+                  {'>'} Uploading squad intel...
+                </motion.p>
+                <motion.p
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: [0, 1, 0.5, 1] }}
+                  transition={{ delay: 2.0, duration: 1.5, repeat: Infinity }}
+                >
+                  {'>'} Awaiting server confirmation
+                  <motion.span
+                    animate={{ opacity: [0, 1] }}
+                    transition={{ duration: 0.5, repeat: Infinity }}
+                  >
+                    _
+                  </motion.span>
+                </motion.p>
+              </div>
+
+              <div className="w-48 md:w-64 mx-auto mt-4">
+                <div className="h-1 bg-gray-800 rounded overflow-hidden">
+                  <motion.div
+                    initial={{ width: '0%' }}
+                    animate={{ width: ['0%', '60%', '65%', '90%'] }}
+                    transition={{ duration: 8, times: [0, 0.3, 0.7, 1], ease: 'easeOut' }}
+                    className="h-full bg-green-500 shadow-[0_0_10px_#22c55e]"
+                  />
+                </div>
+                <div className="flex justify-between mt-1">
+                  <span className="text-[10px] text-green-500/40 font-mono">STATUS: ACTIVE</span>
+                  <motion.span
+                    className="text-[10px] text-green-500/40 font-mono"
+                    animate={{ opacity: [0.4, 1, 0.4] }}
+                    transition={{ duration: 1, repeat: Infinity }}
+                  >
+                    STANDBY
+                  </motion.span>
+                </div>
+              </div>
+            </div>
+
+            <div className="absolute top-6 left-6 w-8 h-8 border-t-2 border-l-2 border-green-500/40" />
+            <div className="absolute top-6 right-6 w-8 h-8 border-t-2 border-r-2 border-green-500/40" />
+            <div className="absolute bottom-6 left-6 w-8 h-8 border-b-2 border-l-2 border-green-500/40" />
+            <div className="absolute bottom-6 right-6 w-8 h-8 border-b-2 border-r-2 border-green-500/40" />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* SUCCESS MODAL */}
       <AnimatePresence>
         {showSuccessModal && (
@@ -442,7 +653,7 @@ export default function Frame2Reality() {
                 <h2 className="text-3xl font-black text-white italic mb-2">MISSION ACCOMPLISHED</h2>
                 <p className="text-gray-400 font-mono text-sm mb-6">Squad registration verified. Deployment orders sent to your comms channel.</p>
                 <div className="flex flex-col gap-2">
-                  <div className="text-green-500 text-xs font-mono animate-pulse">REDIRECTING TO ARCHIVES...</div>
+                  <div className="text-green-500 text-xs font-mono animate-pulse">RETURNING TO BASE...</div>
                   <div className="h-1 w-full bg-gray-800 rounded overflow-hidden">
                     <motion.div initial={{ width:'0%' }} animate={{ width:'100%' }}
                       transition={{ duration:4, ease:'linear' }} className="h-full bg-green-500" />
@@ -690,18 +901,18 @@ export default function Frame2Reality() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-center md:text-left border-b border-white/10 pb-12">
               <div className="bg-zinc-900/30 border border-white/10 p-6 rounded-xl hover:border-green-500/50 transition-colors">
                 <Calendar className="w-8 h-8 text-green-500 mb-3 mx-auto md:mx-0" />
-                <h3 className="font-bold text-white mb-1">DATE</h3>
-                <p className="text-gray-400 text-sm">20th - 21st February, 2026</p>
+                <h3 className="font-bold text-white mb-1">20th - 21st February, 2026</h3>
+                <p className="text-gray-400 text-sm">DATE</p>
               </div>
               <div className="bg-zinc-900/30 border border-white/10 p-6 rounded-xl hover:border-green-500/50 transition-colors">
                 <Clock className="w-8 h-8 text-green-500 mb-3 mx-auto md:mx-0" />
-                <h3 className="font-bold text-white mb-1">TIME</h3>
-                <p className="text-gray-400 text-sm">10:00 AM – 4:20 PM</p>
+                <h3 className="font-bold text-white mb-1">10:00 AM – 4:20 PM</h3>
+                <p className="text-gray-400 text-sm">TIME</p>
               </div>
               <div className="bg-zinc-900/30 border border-white/10 p-6 rounded-xl hover:border-green-500/50 transition-colors">
                 <MapPin className="w-8 h-8 text-green-500 mb-3 mx-auto md:mx-0" />
-                <h3 className="font-bold text-white mb-1">VENUE</h3>
-                <p className="text-gray-400 text-sm">Nalanda Auditorium, VBIT</p>
+                <h3 className="font-bold text-white mb-1">Nalanda Auditorium, VBIT</h3>
+                <p className="text-gray-400 text-sm">VENUE</p>
               </div>
             </div>
 
@@ -709,9 +920,9 @@ export default function Frame2Reality() {
               <div className="group relative overflow-hidden rounded-2xl border border-white/10 bg-[#111]">
                 <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1627398242454-45a1465c2479?q=80&w=1000')] bg-cover bg-center opacity-30 group-hover:opacity-50 transition-opacity" />
                 <div className="relative p-8 md:p-10 min-h-[350px] flex flex-col justify-end">
-                  <div className="font-mono text-green-400 text-sm mb-2">&gt; MISSION_DAY_01</div>
+                  <div className="font-mono text-green-400 text-sm mb-2">&gt; DAY_01</div>
                   <h3 className="text-3xl md:text-4xl font-bold text-white mb-4 mc-font">GRAPHICS & UNITY</h3>
-                  <p className="text-gray-300 leading-relaxed border-l-4 border-green-500 pl-4 bg-black/50 p-3 rounded">
+                  <p className="text-gray-300 leading-relaxed pl-4 bg-black/50 p-3 rounded">
                     Hands-on sessions covering graphics fundamentals, game mechanics, and Unity basics. Culminates in the development of a simple game application.
                   </p>
                 </div>
@@ -719,9 +930,9 @@ export default function Frame2Reality() {
               <div className="group relative overflow-hidden rounded-2xl border border-white/10 bg-[#111]">
                 <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1617802690992-15d93263d3a9?q=80&w=1000')] bg-cover bg-center opacity-30 group-hover:opacity-50 transition-opacity" />
                 <div className="relative p-8 md:p-10 min-h-[350px] flex flex-col justify-end">
-                  <div className="font-mono text-cyan-400 text-sm mb-2">&gt; MISSION_DAY_02</div>
+                  <div className="font-mono text-cyan-400 text-sm mb-2">&gt; DAY_02</div>
                   <h3 className="text-3xl md:text-4xl font-bold text-white mb-4 pubg-font">XR & METAVERSE</h3>
-                  <p className="text-gray-300 leading-relaxed border-l-4 border-cyan-500 pl-4 bg-black/50 p-3 rounded">
+                  <p className="text-gray-300 leading-relaxed pl-4 bg-black/50 p-3 rounded">
                     Introduction to XR and Metaverse concepts. Participants will create Augmented Reality (AR) applications through guided practical implementation.
                   </p>
                 </div>
@@ -734,14 +945,14 @@ export default function Frame2Reality() {
                 <h4 className="text-yellow-500 font-bold mb-1">MANDATORY LOADOUT</h4>
                 <p className="text-sm text-yellow-200/80">
                   1. Laptops are mandatory for every participant.<br/>
-                  2. Team of 3 - 4 members. (At least 1 GAMING LAPTOP per team is mandatory).
+                  2. Team of 4 - 5 members. (At least 1 GAMING LAPTOP per team is mandatory).
                 </p>
               </div>
             </div>
           </div>
         </section>
 
-        {/* REGISTRATION - Same as before, unchanged */}
+        {/* REGISTRATION */}
         <section id="register" className="py-16 md:py-32 px-4 relative z-20">
           <div className="max-w-4xl mx-auto">
             <div className="bg-[#111] border border-green-500/30 rounded-lg overflow-hidden shadow-[0_0_60px_rgba(34,197,94,0.1)]">
@@ -756,7 +967,6 @@ export default function Frame2Reality() {
               <div className="p-6 md:p-12 relative bg-black/80 backdrop-blur">
                 <div className="relative z-10">
 
-                  {/* REGISTRATION CLOSED MESSAGE */}
                   {registrationClosed ? (
                     <div className="text-center py-12">
                       <div className="w-20 h-20 bg-red-500/10 border-2 border-red-500/30 rounded-full flex items-center justify-center mx-auto mb-6">
@@ -813,7 +1023,7 @@ export default function Frame2Reality() {
                             <div>
                               <label className="text-xs text-green-500/70 mb-1 block">SQUAD SIZE *</label>
                               <div className="flex gap-4">
-                                {[3,4].map(num => (
+                                {[4,5].map(num => (
                                   <label key={num} className={`flex-1 border p-3 text-center cursor-pointer transition-all rounded ${teamSize===num?'bg-green-500/20 border-green-500 text-green-400 font-bold':'bg-zinc-900 border-zinc-700 text-gray-500'}`}>
                                     <input type="radio" name="TeamSize" value={num} checked={teamSize===num} onChange={() => setTeamSize(num)} className="hidden"/>
                                     {num} MEMBERS
@@ -1010,14 +1220,31 @@ export default function Frame2Reality() {
                           </div>
 
                           <div className="bg-white p-6 rounded-lg">
-                            <p className="text-black text-center font-bold mb-4">Scan to Pay</p>
+                            <div className="flex items-center justify-between mb-4">
+                              <p className="text-black text-center font-bold flex-1">Scan to Pay</p>
+                              <span className="text-xs text-gray-600 bg-gray-100 px-2 py-1 rounded">
+                                {qrCodes[currentQrIndex].id}
+                              </span>
+                            </div>
                             {qrCodeUrl ? (
-                              <img src={qrCodeUrl} alt="Payment QR Code" className="mx-auto max-w-[300px] w-full" />
+                              <img src={qrCodeUrl} alt="Payment QR Code" className="mx-auto max-w-[300px] w-full rounded" />
                             ) : (
-                              <div className="h-[300px] bg-gray-200 flex items-center justify-center text-gray-500">
+                              <div className="h-[300px] bg-gray-200 flex items-center justify-center text-gray-500 rounded">
                                 QR Code Loading...
                               </div>
                             )}
+                            
+                            {/* QR Switch Button */}
+                            <div className="mt-4 pt-4 border-t border-gray-200">
+                              <button
+                                type="button"
+                                onClick={switchToNextQr}
+                                className="w-full text-sm text-gray-600 hover:text-black transition-colors flex items-center justify-center gap-2 py-2"
+                              >
+                                <RefreshCw size={14} />
+                                <span>QR not working? <strong>Try another QR</strong></span>
+                              </button>
+                            </div>
                           </div>
 
                           <div>
@@ -1035,21 +1262,19 @@ export default function Frame2Reality() {
                           </div>
 
                           <div>
-                            <label className="text-xs text-green-500/70 mb-2 block">TRANSACTION ID / UTR NUMBER (12 DIGITS) *</label>
+                            <label className="text-xs text-green-500/70 mb-2 block">TRANSACTION ID / UTR NUMBER *</label>
                             <input 
                               type="text" 
                               required
-                              maxLength={12}
                               value={utrNumber}
                               onChange={(e) => {
-                                const val = e.target.value.replace(/\D/g, '');
-                                setUtrNumber(val);
+                                setUtrNumber(e.target.value);
                                 setErrors(null);
                               }}
                               className="w-full bg-zinc-900 border border-zinc-700 p-3 text-white focus:border-green-500 focus:outline-none transition-all rounded font-mono tracking-wider"
-                              placeholder="123456789012"
+                              placeholder="Enter payment reference number"
                             />
-                            <p className="text-xs text-gray-500 mt-1">Must be exactly 12 digits</p>
+                            <p className="text-xs text-gray-500 mt-1">Enter the transaction/reference ID from your payment</p>
                           </div>
 
                           {errors && <p className="text-red-500 text-xs font-bold animate-pulse">{errors}</p>}

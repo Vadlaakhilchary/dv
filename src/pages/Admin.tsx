@@ -38,15 +38,16 @@ interface TeamRegistration {
   Timestamp?: string;
 }
 
-// Same URL used in Frame2Reality.tsx for form submission
-// The Google Apps Script should handle GET requests to return all registrations
-const GOOGLE_SCRIPT_URL = 'YOUR_WEB_APP_URL_HERE';
+// ⚠️ PASTE YOUR DEPLOYED GOOGLE APPS SCRIPT WEB APP URL BELOW
+// This same URL is used in Frame2Reality.tsx for form submission (POST)
+// and here to fetch all registrations (GET)
+const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyqERB9KYW7Q6YDO9_rICzuDPmz8p8FyYpfHRR-UZGT4B_9oa1H1rRTeA72gJ_UAtou/exec';
 
 // Simple admin password — change this to your desired password
-const ADMIN_PASSWORD = 'datavedhi@admin';
+const ADMIN_PASSWORD = 'core@admindv';
 
 // Registration participant limit
-const REGISTRATION_LIMIT = 250;
+const REGISTRATION_LIMIT = 350;
 
 // ─────────────────────────────────────────────────────────────────
 // ADMIN PAGE
@@ -69,6 +70,25 @@ export default function Admin() {
     return stored === null ? true : stored === 'true';
   });
   const [toggling, setToggling] = useState(false);
+  
+  // Default QR code state
+  const [defaultQR, setDefaultQR] = useState(() => {
+    const stored = localStorage.getItem('dv_default_qr');
+    return stored || 'QR1';
+  });
+  
+  const qrOptions = [
+    { id: 'QR1', label: 'Payment QR 1' },
+    { id: 'QR2', label: 'Payment QR 2' },
+    { id: 'QR3', label: 'Payment QR 3' },
+    { id: 'QR4', label: 'Payment QR 4' },
+  ];
+  
+  // Update default QR
+  const updateDefaultQR = (qrId: string) => {
+    setDefaultQR(qrId);
+    localStorage.setItem('dv_default_qr', qrId);
+  };
 
   // UI state
   const [searchQuery, setSearchQuery] = useState('');
@@ -484,6 +504,95 @@ export default function Admin() {
             </p>
           </motion.div>
         )}
+        
+        {/* ── QR CODE MANAGEMENT ── */}
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="mb-6 bg-[#111] border border-zinc-800 rounded-xl p-5"
+        >
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="text-sm font-mono font-bold text-green-400 flex items-center gap-2">
+                <RefreshCw size={16} /> DEFAULT QR CODE MANAGEMENT
+              </h3>
+              <p className="text-xs font-mono text-gray-500 mt-1">
+                Set which QR code shows by default on registration page
+              </p>
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {qrOptions.map((qr) => (
+              <button
+                key={qr.id}
+                onClick={() => updateDefaultQR(qr.id)}
+                className={`p-4 rounded-lg border-2 transition-all font-mono text-sm font-bold ${
+                  defaultQR === qr.id
+                    ? 'bg-green-500/20 border-green-500 text-green-400'
+                    : 'bg-zinc-900 border-zinc-700 text-gray-400 hover:border-green-500/50'
+                }`}
+              >
+                <div className="text-center">
+                  <div className="text-lg mb-1">{defaultQR === qr.id ? '✓' : '○'}</div>
+                  <div>{qr.id}</div>
+                  {defaultQR === qr.id && (
+                    <div className="text-[10px] text-green-500 mt-1">DEFAULT</div>
+                  )}
+                </div>
+              </button>
+            ))}
+          </div>
+          
+          <div className="mt-4 p-3 bg-zinc-900/50 border border-zinc-800 rounded text-xs font-mono text-gray-500">
+            💡 <strong className="text-gray-400">Note:</strong> Users can still switch to other QR codes if they encounter issues during payment.
+          </div>
+        </motion.div>
+
+        {/* ── QR CODE MANAGEMENT ── */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-6 bg-[#111] border border-zinc-800 rounded-xl p-6"
+        >
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="text-xs font-mono text-green-500 tracking-widest mb-1">PAYMENT QR CODE MANAGEMENT</h3>
+              <p className="text-xs font-mono text-gray-500">Replace any QR code image in the public folder</p>
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {['QR1', 'QR2', 'QR3', 'QR4'].map((qrId, index) => (
+              <div key={qrId} className="bg-zinc-900 border border-zinc-800 rounded-lg p-4 hover:border-green-500/30 transition-colors">
+                <div className="bg-white rounded-lg p-3 mb-3">
+                  <img 
+                    src={`/payment-qr-${index + 1}.jpeg`} 
+                    alt={`Payment ${qrId}`} 
+                    className="w-full h-auto rounded"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="200" height="200"%3E%3Crect fill="%23ddd" width="200" height="200"/%3E%3Ctext fill="%23999" font-family="monospace" font-size="14" x="50%25" y="50%25" text-anchor="middle" dominant-baseline="middle"%3ENo Image%3C/text%3E%3C/svg%3E';
+                    }}
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-mono font-bold text-green-400">{qrId}</span>
+                  <span className="text-xs font-mono text-gray-500">payment-qr-{index + 1}.jpeg</span>
+                </div>
+                <p className="text-xs font-mono text-gray-600 mt-2">
+                  Replace in <code className="bg-zinc-800 px-1 rounded">public/</code> folder
+                </p>
+              </div>
+            ))}
+          </div>
+          
+          <div className="mt-4 p-3 bg-blue-900/10 border border-blue-500/30 rounded-lg">
+            <p className="text-xs font-mono text-blue-400">
+              💡 <strong>How to update:</strong> Replace the image files (payment-qr-1.jpeg, payment-qr-2.jpeg, etc.) in the public/ folder and refresh the page.
+            </p>
+          </div>
+        </motion.div>
 
         {/* ── STATS CARDS ── */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
