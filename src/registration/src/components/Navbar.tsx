@@ -20,7 +20,9 @@ export const Navbar: React.FC<NavbarProps> = ({
     const handleScroll = () => {
       setScrolled(window.scrollY > 40);
     };
+
     window.addEventListener('scroll', handleScroll);
+
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
@@ -45,6 +47,7 @@ export const Navbar: React.FC<NavbarProps> = ({
       }`}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between">
+
         {/* Brand Zone: Data Vedhi Logo */}
         <button
           onClick={() => handleLinkClick('hero')}
@@ -53,7 +56,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           <DataVedhiLogo size={scrolled ? 'sm' : 'md'} />
         </button>
 
-        {/* Desktop Nav Zone: Clean Typography Links (Strictly No Events, No Gallery) */}
+        {/* Desktop Navigation */}
         <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-slate-300">
           {navLinks.map((link) => (
             <button
@@ -68,6 +71,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
         {/* Action Zone */}
         <div className="hidden md:flex items-center gap-4">
+
           {/* Track Registration Pass */}
           <button
             onClick={onOpenTrack}
@@ -87,18 +91,20 @@ export const Navbar: React.FC<NavbarProps> = ({
             <Shield className="w-4 h-4" />
           </button>
 
-          {/* Primary Action: OLLAVERSE Register CTA */}
+          {/* Primary Action: Register Now */}
           <button
             onClick={() => handleLinkClick('register')}
             className="group relative inline-flex items-center gap-2 px-5 py-2 rounded-lg text-xs font-semibold text-slate-950 uppercase tracking-wider bg-gradient-to-r from-cyan-400 via-sky-400 to-cyan-300 hover:from-cyan-300 hover:to-sky-200 shadow-[0_0_20px_rgba(6,182,212,0.5)] hover:shadow-[0_0_30px_rgba(6,182,212,0.8)] transition-all duration-200 active:scale-95"
           >
-            <span>OLLAVERSE</span>
+            <span>REGISTER NOW</span>
+
             <ArrowUpRight className="w-3.5 h-3.5 text-slate-950 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
           </button>
         </div>
 
         {/* Mobile Hamburger Button */}
         <div className="flex items-center gap-2 md:hidden">
+
           <button
             onClick={onOpenTrack}
             className="p-2 text-cyan-400 hover:text-white"
@@ -106,20 +112,28 @@ export const Navbar: React.FC<NavbarProps> = ({
           >
             <Search className="w-5 h-5" />
           </button>
+
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             className="p-2 rounded-lg text-slate-300 hover:text-white hover:bg-slate-900 border border-slate-800"
             aria-label="Toggle Navigation Menu"
           >
-            {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+            {mobileMenuOpen ? (
+              <X className="w-6 h-6" />
+            ) : (
+              <Menu className="w-6 h-6" />
+            )}
           </button>
+
         </div>
       </div>
 
       {/* Mobile Slide-down Menu */}
       {mobileMenuOpen && (
         <div className="md:hidden bg-slate-950/95 border-b border-cyan-500/20 backdrop-blur-2xl px-6 py-6 transition-all animate-in fade-in duration-200">
+
           <nav className="flex flex-col gap-4 text-base font-medium text-slate-200">
+
             {navLinks.map((link) => (
               <button
                 key={link.id}
@@ -131,6 +145,8 @@ export const Navbar: React.FC<NavbarProps> = ({
             ))}
 
             <div className="pt-2 flex flex-col gap-3">
+
+              {/* Track Registration Pass */}
               <button
                 onClick={() => {
                   setMobileMenuOpen(false);
@@ -142,6 +158,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <span>Track Registration Pass</span>
               </button>
 
+              {/* Admin Console */}
               <button
                 onClick={() => {
                   setMobileMenuOpen(false);
@@ -153,12 +170,14 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <span>Admin Console</span>
               </button>
 
+              {/* Register Now */}
               <button
                 onClick={() => handleLinkClick('register')}
                 className="flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-slate-950 uppercase tracking-wider bg-gradient-to-r from-cyan-400 to-sky-400 shadow-[0_0_25px_rgba(6,182,212,0.6)]"
               >
-                <span>ENTER OLLAVERSE →</span>
+                <span>REGISTER NOW →</span>
               </button>
+
             </div>
           </nav>
         </div>

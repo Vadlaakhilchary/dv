@@ -47,8 +47,9 @@ export const DataVedhiLogo: React.FC<DataVedhiLogoProps> = ({
           >
             DATA <span className="text-cyan-400">VEDHI</span>
           </span>
+
           <span className="text-[10px] tracking-widest text-slate-400 font-mono uppercase">
-            VBIT AI &amp; DS Chapter
+            DATA AT YOUR FINGERTIPS
           </span>
         </div>
       )}
